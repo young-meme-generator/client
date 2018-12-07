@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+    <style>
+        .flex-position {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .flex-button {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .title {
+            margin: 0 auto;
+            font-family: "Brush Script MT", cursive; font-style: normal; font-variant: normal; font-weight: 700; line-height: 26.4px;
+        }
+        
+        body {
+            background-color:rgb(139, 215, 218);
+        }
+    </style>
+</head>
+<body>
+    <script>
+        window.fbAsyncInit = function() {
+          FB.init({
+            appId            : '532401213908643',
+            autoLogAppEvents : true,
+            xfbml            : true,
+            version          : 'v3.2'
+          });                    
+        };
+            (function(d, s, id){
+                var js, fjs = d.getElementsByTagName(s)[0];
+                if (d.getElementById(id)) {return;}
+                js = d.createElement(s); js.id = id;
+                js.src = "https://connect.facebook.net/en_US/sdk.js";
+                fjs.parentNode.insertBefore(js, fjs);
+            }(document, 'script', 'facebook-jssdk'));     
+    </script>        
+    <div id="app">
+        <div class="container">
+            <div class="flex-position">
+                    <h1 class="title mb-5">Meme Generator</h1>
+                <div v-if="!generateMeme">
+                    <btn-generate-meme @get-meme="getMeme"></btn-generate-meme>
+                    <btn-find-meme @meme-find-one="foundMeme"></btn-find-meme>
+                </div>
+                <div v-else>
+                    <div v-if="findMode">
+                        <meme-find-display 
+                            :all-searched-meme= "allSearchedMeme" @meme-save="saveMeme" :find-meme="findMeme">
+                        </meme-find-display>
+                    </div>
+                    <div v-else>
+                        <meme-display :my-meme="meme"></meme-display>
+                    </div>
+                    <input type="file" @change="avatarChange" class="mt-5" />
+                    <button @click="saveItems">Upload GCP</button>
+                    <div>
+                        <img
+                            :src="avatar"
+                            style="height: 240px; width: auto;"
+                        />
+                        <div v-html="link"></div>
+                    </div>  
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script>
+        Vue.component('btn-find-meme', {
+            data: function() {
+                return {
+                    category: ''
+                }
+            },
+            template:
+                `<form @submit.prevent="findMeme()" class="mt-5"> 
+                    <div class="form-group">
+                        <input type="text" class="form-control mt-4" v-model="category" placeholder="Enter category" required>
+                    </div>
+                    <button type="submit" class="btn btn-secondary">Find meme</button>
+                </form>`,
+            methods: {
+                findMeme() {
+                    axios({
+                        method: 'post',
+                        url: 'http://localhost:3000/memes/find',
+                        data: {
+                            value: this.category
+                        }
+                    })
+                    .then((response) => {
+                        let memePayload =  {
+                            findMeme: response.data.meme.instanceImageUrl,
+                            allMeme: response.data.allMeme
+                        }
+
+                        this.$emit('meme-find-one', memePayload)
+                    })
+                    .catch((err) => {
+                        console.log(err)
+                    })
+                }
+            }
+        })
+
+        Vue.component('meme-find-display', {
+            props:['findMeme', 'allSearchedMeme', 'urlToShare'],
+            data: function() {
+                return {
+                    captionContent: '',
+                    findData: this.findMeme
+                }
+            },
+            template:
+            `<div class ="flex-button">
+                    <img :src="findData" height="400" width="450">
+                    <button type="submit" @click="randomAgain" class="btn btn-secondary mt-3 btn-lg">Random again</button>   
+                    <button type="submit" @click="saveMeme" class="btn btn-secondary mt-3 btn-lg">Save and Download</button> 
+                    <button type="submit" @click="shareFb"class="btn btn-secondary mt-3 btn-lg">Share</button>
+            </div>`,
+            methods: {
+                shareFb() {
+                    FB.ui( {
+                        method: 'share',
+                        href:  this.urlToShare
+                    }, (response) => {
+                        console.log(response)
+                    })
+                },
+                saveMeme() {
+                    axios({
+                        method: 'post',
+                        url: 'http://localhost:3000/memes/download',
+                        data: {
+                            url: this.findData
+                        }
+                    })
+                    .then((response) => {
+                        console.log(response)
+                    })
+                    .catch((err) => {
+                        console.log(err)
+                    })
+                },
+                
+                randomAgain() {
+                    let pos = Math.floor(Math.random() * 25)
+                    let randomMeme = this.allSearchedMeme[pos].instanceImageUrl
+                    this.findData = randomMeme
+                    console.log(this.findData)
+                }
+            },
+        })
+
+        Vue.component('meme-display', {
+            props: ['myMeme'],
+            data: function() {
+                return {
+                    captionContent: '',
+                }
+            },
+            template: 
+                `<div class="flex-button">
+                    <img :src="myMeme.url" height="400" width="450">
+                    <button type="submit" @click="saveMeme" class="btn btn-secondary mt-3 btn-lg">Save and Download</button> 
+                    <button type="submit" @click="shareFb"class="btn btn-secondary mt-3 btn-lg">Share</button>
+                </div>`,
+            methods: {
+                shareFb() {
+                    FB.ui( {
+                        method: 'share',
+                        href:   this.urlToShare
+                    }, (response) => {
+                        console.log(response)
+                    })
+                },
+                saveMeme() {
+                    axios({
+                        method: 'post',
+                        url: 'http://localhost:3000/memes/download',
+                        data: {
+                            url: this.myMeme.url
+                        }
+                    })
+                    .then((response) => {
+                        console.log(response)
+                    })
+                    .catch((err) => {
+                        console.log(err)
+                    })
+                }
+            }
+        })
+
+        Vue.component('btn-generate-meme', {
+            data: function() {
+                return {
+                    category: ''
+                }
+            },
+            template: 
+                `<button type="button" @click="generateOneMeme" class="btn btn-secondary">Generate meme</button>
+                `,
+            methods: {
+                generateOneMeme() {
+                    axios({
+                        method: 'get',
+                        url: 'http://localhost:3000/memes'
+                    })
+                    .then((response) => {
+                        this.$emit('get-meme', response.data.meme)
+                    })
+                    .catch((err) => {
+                        console.log(err)
+                    })
+                }
+            }
+        })
+
+        new Vue( {
+            el: '#app',
+            data: {
+                generateMeme: false,
+                meme: '',
+                id: '',
+                findMeme: '',
+                findMode: false,
+                allSearchedMeme: '',
+                avatar: '',
+                fileTarget: '',
+                link: '',
+                memeToSave: '',
+                urlToShare: ''
+            },
+            methods: {
+                foundMeme(payLoad) {
+                    this.findMeme = payLoad.findMeme
+                    this.allSearchedMeme = payLoad.allMeme
+                    console.log(payLoad)
+                    this.generateMeme = true
+                    this.findMode = true
+                },
+                saveMeme(payLoad) {
+                    console.log(payLoad)
+                    this.memeToSave = payLoad
+                },
+                getMeme(payLoad) {
+                    this.meme = payLoad
+                    this.generateMeme = true
+                },
+                avatarChange(e) {
+                    this.fileTarget = e.target.files[0];
+                    let fileReader = new FileReader();
+                    fileReader.readAsDataURL(this.fileTarget);
+                    fileReader.onload = (e) => {
+                        this.avatar = e.target.result;
+                    };
+                },
+                saveItems() {
+                    let formData = new FormData();
+                    formData.append('fileTarget', this.fileTarget);
+                    axios.post(
+                        'http://localhost:3000/gcp',
+                        formData,
+                        {
+                            headers: {'Content-Type': 'multipart/form-data'}
+                        }
+                    )
+                        .then(result => {
+                            this.urlToShare = result.data.url
+                            this.link = `<a href="${result.data.url}" target="_blank">${result.data.url}</a>`;
+                        })
+                        .catch(function(error) {
+                            console.log(error);
+                        });
+                },
+            }
+        })
+    </script>
+</body>
+</html>
