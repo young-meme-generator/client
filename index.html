@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+    <style>
+        .flex-position {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+        body {
+            background-color:rgb(139, 215, 218);
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="container">
+            <div class="flex-position">
+                <div v-if="!generateMeme">
+                    <btn-generate-meme @get-meme="getMeme"></btn-generate-meme>
+                    <btn-find-meme @meme-find-one="foundMeme"></btn-find-meme>
+                </div>
+                <div v-else>
+                    <div v-if="findMode">
+                        <meme-find-display 
+                            :all-searched-meme= "allSearchedMeme" :find-meme="findMeme">
+                        </meme-find-display>
+                    </div>
+                    <div v-else>
+                        <meme-display :my-meme="meme"></meme-display>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script>
+        Vue.component('btn-find-meme', {
+            data: function() {
+                return {
+                    category: ''
+                }
+            },
+            template:
+                `<form @submit.prevent="findMeme()" class="mt-5"> 
+                    <div class="form-group">
+                        <input type="text" class="form-control mt-4" v-model="category" placeholder="Enter category" required>
+                    </div>
+                    <button type="submit" class="btn btn-secondary">Find meme</button>
+                </form>`,
+            methods: {
+                findMeme() {
+                    axios({
+                        method: 'post',
+                        url: 'http://localhost:3000/memes/find',
+                        data: {
+                            value: this.category
+                        }
+                    })
+                    .then((response) => {
+                        let memePayload =  {
+                            findMeme: response.data.meme.instanceImageUrl,
+                            allMeme: response.data.allMeme
+                        }
+
+                        this.$emit('meme-find-one', memePayload)
+                    })
+                    .catch((err) => {
+                        console.log(err)
+                    })
+                }
+            }
+        })
+
+        Vue.component('meme-find-display', {
+            props:['findMeme', 'allSearchedMeme'],
+            data: function() {
+                return {
+                    captionContent: '',
+                    findData: this.findMeme
+                }
+            },
+            template:
+            `<div>
+                <div>
+                    <img :src="findData" height="400" width="450">
+                </div>
+                    <button type="submit" @click="randomAgain" class="btn btn-secondary mt-3 btn-lg">Random again</button>
+                    <button type="submit" class="btn btn-secondary mt-3 btn-lg">Save</button>  
+                </div>
+            </div>`,
+            methods: {
+                saveMeme() {
+                    //this.$emit('meme-save-find-click', this.findMeme)
+                },
+                
+                randomAgain() {
+                    console.log('woi')
+                    let pos = Math.floor(Math.random() * 25)
+                    let randomMeme = this.allSearchedMeme[pos].instanceImageUrl
+                    this.findData = randomMeme
+                    console.log(this.findData)
+                }
+            },
+        })
+
+        Vue.component('meme-display', {
+            props: ['myMeme'],
+            data: function() {
+                return {
+                    captionContent: '',
+                }
+            },
+            template: 
+                `<div>
+                <img :src="myMeme.url" height="400" width="450">
+                    <form @submit.prevent="saveMeme()"> 
+                        <div class="form-group">
+                            <input type="text" class="form-control mt-4" v-model="captionContent" placeholder="Enter caption">
+                        </div>
+                        <div class="d-flex justify-content-center">
+                            <button type="submit" class="btn btn-secondary" :memeId="myMeme.id">Add caption</button>
+                        </div>
+                    </form>
+                </div>`,
+            methods: {
+                saveMeme() {
+                    axios({
+                        method: 'post',
+                        url: 'http://localhost:3000/memes',
+                        data: {
+                            templateId: this.myMeme.id,
+                            caption: this.captionContent
+                        }
+                    })
+                    .then((response) => { 
+                    })
+                    .catch((err) => {
+                        console.log(err)
+                    })
+
+                    this.$emit('meme-save-click', this.captionContent)
+                }
+            }
+        })
+
+        Vue.component('btn-generate-meme', {
+            data: function() {
+                return {
+                    category: ''
+                }
+            },
+            template: 
+                `<button type="button" @click="generateMeme" class="btn btn-secondary">Generate meme</button>
+                `,
+            methods: {
+                generateMeme() {
+                    axios({
+                        method: 'get',
+                        url: 'http://localhost:3000/memes'
+                    })
+                    .then((response) => {
+                        this.$emit('get-meme', response.data.meme)
+                    })
+                    .catch((err) => {
+                        console.log(err)
+                    })
+                }
+            }
+        })
+
+        new Vue( {
+            el: '#app',
+            data: {
+                generateMeme: false,
+                meme: '',
+                id: '',
+                findMeme: '',
+                findMode: false,
+                allSearchedMeme: ''
+            },
+            methods: {
+                foundMeme(payLoad) {
+                    this.findMeme = payLoad.findMeme
+                    this.allSearchedMeme = payLoad.allMeme
+                    console.log(payLoad)
+                    this.generateMeme = true
+                    this.findMode = true
+                },
+                testMeme(payLoad) {
+                    console.log(payLoad)
+                },
+                getMeme(payLoad) {
+                    this.meme = payLoad
+                    this.generateMeme = true
+                },
+                generateMeme(payLoad) {
+                    console.log(payLoad)
+                }
+            }
+        })
+    </script>
+</body>
+</html>
