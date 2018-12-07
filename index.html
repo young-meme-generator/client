@@ -61,24 +61,25 @@
                 <div v-else>
                     <div v-if="findMode">
                         <meme-find-display 
-                            :all-searched-meme= "allSearchedMeme" :find-meme="findMeme">
+                            :all-searched-meme= "allSearchedMeme" @meme-save="saveMeme" :find-meme="findMeme">
                         </meme-find-display>
                     </div>
                     <div v-else>
                         <meme-display :my-meme="meme"></meme-display>
                     </div>
+                    <input type="file" @change="avatarChange" class="mt-5" />
+                    <button @click="saveItems">Upload GCP</button>
+                    <div>
+                        <img
+                            :src="avatar"
+                            style="height: 240px; width: auto;"
+                        />
+                        <div v-html="link"></div>
+                    </div>  
+                </div>
                 </div>
             </div>
         </div>
-    </div>
-    <input type="file" @change="avatarChange" />
-    <button @click="saveItems">Upload GCP</button>
-    <div>
-        <img
-            :src="avatar"
-            style="height: 240px; width: auto;"
-        />
-        <div v-html="link"></div>
     </div>
 
 
@@ -123,7 +124,7 @@
         })
 
         Vue.component('meme-find-display', {
-            props:['findMeme', 'allSearchedMeme'],
+            props:['findMeme', 'allSearchedMeme', 'urlToShare'],
             data: function() {
                 return {
                     captionContent: '',
@@ -134,16 +135,35 @@
             `<div class ="flex-button">
                     <img :src="findData" height="400" width="450">
                     <button type="submit" @click="randomAgain" class="btn btn-secondary mt-3 btn-lg">Random again</button>   
-                    <button type="submit" class="btn btn-secondary mt-3 btn-lg">Save</button> 
-                    <button type="submit" class="btn btn-secondary mt-3 btn-lg">Share</button>
+                    <button type="submit" @click="saveMeme" class="btn btn-secondary mt-3 btn-lg">Save and Download</button> 
+                    <button type="submit" @click="shareFb"class="btn btn-secondary mt-3 btn-lg">Share</button>
             </div>`,
             methods: {
+                shareFb() {
+                    FB.ui( {
+                        method: 'share',
+                        href:  this.urlToShare
+                    }, (response) => {
+                        console.log(response)
+                    })
+                },
                 saveMeme() {
-                    //this.$emit('meme-save-find-click', this.findMeme)
+                    axios({
+                        method: 'post',
+                        url: 'http://localhost:3000/memes/download',
+                        data: {
+                            url: this.findData
+                        }
+                    })
+                    .then((response) => {
+                        console.log(response)
+                    })
+                    .catch((err) => {
+                        console.log(err)
+                    })
                 },
                 
                 randomAgain() {
-                    console.log('woi')
                     let pos = Math.floor(Math.random() * 25)
                     let randomMeme = this.allSearchedMeme[pos].instanceImageUrl
                     this.findData = randomMeme
@@ -160,34 +180,34 @@
                 }
             },
             template: 
-                `<div>
-                <img :src="myMeme.url" height="400" width="450">
-                    <form @submit.prevent="saveMeme()"> 
-                        <div class="form-group">
-                            <input type="text" class="form-control mt-4" v-model="captionContent" placeholder="Enter caption">
-                        </div>
-                        <div class="d-flex justify-content-center">
-                            <button type="submit" class="btn btn-secondary" :memeId="myMeme.id">Add caption</button>
-                        </div>
-                    </form>
+                `<div class="flex-button">
+                    <img :src="myMeme.url" height="400" width="450">
+                    <button type="submit" @click="saveMeme" class="btn btn-secondary mt-3 btn-lg">Save and Download</button> 
+                    <button type="submit" @click="shareFb"class="btn btn-secondary mt-3 btn-lg">Share</button>
                 </div>`,
             methods: {
+                shareFb() {
+                    FB.ui( {
+                        method: 'share',
+                        href:   this.urlToShare
+                    }, (response) => {
+                        console.log(response)
+                    })
+                },
                 saveMeme() {
                     axios({
                         method: 'post',
-                        url: 'http://localhost:3000/memes',
+                        url: 'http://localhost:3000/memes/download',
                         data: {
-                            templateId: this.myMeme.id,
-                            caption: this.captionContent
+                            url: this.myMeme.url
                         }
                     })
-                    .then((response) => { 
+                    .then((response) => {
+                        console.log(response)
                     })
                     .catch((err) => {
                         console.log(err)
                     })
-
-                    this.$emit('meme-save-click', this.captionContent)
                 }
             }
         })
@@ -199,10 +219,10 @@
                 }
             },
             template: 
-                `<button type="button" @click="generateMeme" class="btn btn-secondary">Generate meme</button>
+                `<button type="button" @click="generateOneMeme" class="btn btn-secondary">Generate meme</button>
                 `,
             methods: {
-                generateMeme() {
+                generateOneMeme() {
                     axios({
                         method: 'get',
                         url: 'http://localhost:3000/memes'
@@ -229,6 +249,8 @@
                 avatar: '',
                 fileTarget: '',
                 link: '',
+                memeToSave: '',
+                urlToShare: ''
             },
             methods: {
                 foundMeme(payLoad) {
@@ -238,15 +260,13 @@
                     this.generateMeme = true
                     this.findMode = true
                 },
-                testMeme(payLoad) {
+                saveMeme(payLoad) {
                     console.log(payLoad)
+                    this.memeToSave = payLoad
                 },
                 getMeme(payLoad) {
                     this.meme = payLoad
                     this.generateMeme = true
-                },
-                generateMeme(payLoad) {
-                    console.log(payLoad)
                 },
                 avatarChange(e) {
                     this.fileTarget = e.target.files[0];
@@ -267,6 +287,7 @@
                         }
                     )
                         .then(result => {
+                            this.urlToShare = result.data.url
                             this.link = `<a href="${result.data.url}" target="_blank">${result.data.url}</a>`;
                         })
                         .catch(function(error) {
