@@ -71,7 +71,16 @@
             </div>
         </div>
     </div>
-    
+    <input type="file" @change="avatarChange" />
+    <button @click="saveItems">Upload GCP</button>
+    <div>
+        <img
+            :src="avatar"
+            style="height: 240px; width: auto;"
+        />
+        <div v-html="link"></div>
+    </div>
+
 
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
@@ -216,7 +225,10 @@
                 id: '',
                 findMeme: '',
                 findMode: false,
-                allSearchedMeme: ''
+                allSearchedMeme: '',
+                avatar: '',
+                fileTarget: '',
+                link: '',
             },
             methods: {
                 foundMeme(payLoad) {
@@ -235,7 +247,32 @@
                 },
                 generateMeme(payLoad) {
                     console.log(payLoad)
-                }
+                },
+                avatarChange(e) {
+                    this.fileTarget = e.target.files[0];
+                    let fileReader = new FileReader();
+                    fileReader.readAsDataURL(this.fileTarget);
+                    fileReader.onload = (e) => {
+                        this.avatar = e.target.result;
+                    };
+                },
+                saveItems() {
+                    let formData = new FormData();
+                    formData.append('fileTarget', this.fileTarget);
+                    axios.post(
+                        'http://localhost:3000/gcp',
+                        formData,
+                        {
+                            headers: {'Content-Type': 'multipart/form-data'}
+                        }
+                    )
+                        .then(result => {
+                            this.link = `<a href="${result.data.url}" target="_blank">${result.data.url}</a>`;
+                        })
+                        .catch(function(error) {
+                            console.log(error);
+                        });
+                },
             }
         })
     </script>
